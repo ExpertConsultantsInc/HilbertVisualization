@@ -162,7 +162,7 @@ public class HilbertMapping
 	
 	private void add(int x1, int y1)
 	{
-		System.out.printf("add[%d]: %d, %d\n", cpIndex, x1, y1);
+		//System.out.printf("add[%d]: %d, %d\n", cpIndex, x1, y1);
 		xVals[cpIndex] = x1;
 		yVals[cpIndex] = y1;
 		
