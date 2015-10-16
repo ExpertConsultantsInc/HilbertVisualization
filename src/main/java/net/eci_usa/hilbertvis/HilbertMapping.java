@@ -1,6 +1,6 @@
 package net.eci_usa.hilbertvis;
 
-public class HilbertMapping
+public class HilbertMapping implements CoordMapper
 {
 	/* code derived from https://github.com/rjoberon/hilbert-curve/blob/master/src/main/java/de/unikassel/cs/kde/statistics/hilbert/HilbertCurve.java */
 	/*
@@ -41,6 +41,11 @@ public class HilbertMapping
 	}
 	
 	public int getWidth()
+	{
+		return toIndexMap.length;
+	}
+	
+	public int getHeight()
 	{
 		return toIndexMap.length;
 	}
@@ -172,6 +177,11 @@ public class HilbertMapping
 	private static enum Direction
 	{
 		UP, LEFT, DOWN, RIGHT;
+	}
+
+	public String getMapperName()
+	{
+		return "Hilbert";
 	}
 
 }

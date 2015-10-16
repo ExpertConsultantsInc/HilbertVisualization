@@ -14,24 +14,53 @@ public class App2
 {
 	public static void main(String args[]) throws IOException
 	{
-		HilbertMapping hm = new HilbertMapping(9);
+		HilbertMapping hm = new HilbertMapping(8);
 		
-		int[][] nlnm = computeNonLocalNeighborMeasurement(hm);
-		dumpStats(nlnm);
+		writeAnimiatedNonLocalNeighborMeasurementGIF(hm, 20, new File("./nlnm.gif"));
+		writeAnimatedBlobSweepGIF(hm, hm.getLength() / 30, 100, new File("./sweep.gif"));
 		
-//		BufferedImage bi = writeToImage(nlnm);
-//		ImageIO.write(bi, "gif", new File("./nlnm.gif"));
-		
-		writeAnimiated(hm, nlnm, 20, new File("./nlnm.gif"));
-		
-//		nlnm = computeNonLocalNeighborMeasurement2(hm);
-//		dumpStats(nlnm);
-//		bi = writeToImage(nlnm);
-//		ImageIO.write(bi, "jpg", new File("./nlnm2.jpg"));
 	}
 	
-	public static void writeAnimiated(HilbertMapping hm, int[][] data, int stepCount, File f) throws FileNotFoundException, IOException
+	
+	public static void writeAnimatedBlobSweepGIF(HilbertMapping hm, int blobWidth, int stepCount, File f) throws FileNotFoundException, IOException
 	{
+		ImageOutputStream output = new FileImageOutputStream(f);
+		GifSequenceWriter writer = null;
+		
+		float stepSize = (hm.getLength() - blobWidth) / (float)stepCount;
+		int blobCenterVal = 7;
+		int blobEdgeVal = 3;
+		int blobTraceVal = 1;
+		float blobValStep = (blobCenterVal-blobEdgeVal)/(float)(blobWidth/2);
+		
+		for(int step = 0; step < stepCount; step++)
+		{
+			int[][] data = new int[hm.getWidth()][hm.getWidth()];
+			int leftOffset = (int)(step * stepSize);
+			int blobCenter = leftOffset + blobWidth/2;
+			for(int i = 0; i < leftOffset+blobWidth; i++)
+			{
+				int[] coords = hm.getCoords(i);
+				int centerDist = Math.abs( blobCenter - i);
+				int val = i < leftOffset ? blobTraceVal : (int)(blobCenterVal - centerDist*blobValStep);  
+				data[coords[0]][coords[1]] = val;
+			}
+			BufferedImage bi = createBufferedImageFromData(data, 1 );
+			if ( writer == null )
+			{
+				writer = new GifSequenceWriter(output, bi.getType(), 100, true);
+			}
+			writer.writeToSequence(bi);
+		}
+		writer.close();
+		output.close();
+	}
+	
+	
+	public static void writeAnimiatedNonLocalNeighborMeasurementGIF(HilbertMapping hm, int stepCount, File f) throws FileNotFoundException, IOException
+	{
+		int[][] data = computeNonLocalNeighborMeasurement(hm);
+		
 		ImageOutputStream output = new FileImageOutputStream(f);
 		GifSequenceWriter writer = null;
 		
@@ -198,7 +227,7 @@ public class App2
 	{
 		int[] stats = stats(data);
 		float vallimit = stats[1] * limitCutoff;
-		System.out.println("CreateBufferedImageFromData, rawlimit: " + stats[2] + ", cutoff: " + vallimit + ", " + limitCutoff);
+		//System.out.println("CreateBufferedImageFromData, rawlimit: " + stats[1] + ", cutoff: " + vallimit + ", " + limitCutoff);
 		int width = data.length;
 		int ht = data[0].length;
 		
