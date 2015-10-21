@@ -1,47 +1,57 @@
 package net.eci_usa.hilbertvis;
 
-import java.util.Arrays;
-
 public class SpiralMapping implements CoordMapper
 {
-	int[] xVals;
-	int[] yVals;
-
-	int[][] toIndexMap;
-
+	int offset;
+	int[][] coordsToIndexMapping;
+	
 	public SpiralMapping(int width)
 	{
-
+		this.offset = (width/2) -1;
+		coordsToIndexMapping = new int[width][width];
+		for(int i = 0; i < width*width; i++)
+		{
+			int[] xy = getCoords(i);
+			coordsToIndexMapping[xy[0]][xy[1]] = i;
+		}
 	}
 
 	public int getWidth()
 	{
-		return 0;
+		return coordsToIndexMapping.length;
 	}
 
 	public int getHeight()
 	{
-		return 0;
+		return coordsToIndexMapping.length;
 	}
 
 	public int getLength()
 	{
-		return 0;
+		return coordsToIndexMapping.length * coordsToIndexMapping.length;
 	}
 
 	public int getIndex(int x, int y)
 	{
-		return 0;
+		return coordsToIndexMapping[x][y];
 	}
 
 	public int[] getCoords(int index)
 	{
-		return null;
+		int intRoot = (int) Math.floor(Math.sqrt(index));
+
+		int x = (int) ((Math.round(intRoot / 2f) * Math.pow(-1, intRoot + 1)) + (Math.pow(-1, intRoot + 1)
+				* (((intRoot * (intRoot + 1)) - index) - Math.abs((intRoot * (intRoot + 1)) - index)) / 2f));
+
+		int y = (int) ((Math.round(intRoot / 2f) * Math.pow(-1, intRoot)) + (Math.pow(-1, intRoot + 1)
+				* (((intRoot * (intRoot + 1)) - index) + Math.abs((intRoot * (intRoot + 1)) - index)) / 2f));
+
+		return new int[] { x+offset, y+offset+1 };
 	}
 
 	public String getMapperName()
 	{
-		return null;
+		return "spiral";
 	}
 
 }

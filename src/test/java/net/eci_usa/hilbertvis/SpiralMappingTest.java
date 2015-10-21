@@ -12,12 +12,16 @@ public class SpiralMappingTest
 	@Test
 	public void test()
 	{
-		for(int i =0; i < 100; i++)
+		for (int i = 0; i < 100; i++)
 		{
-			getPosition(i);
+			int[] coords1 = getPosition(i);
+			int[] coords2 = getTileCoordinates(i);
+			
+			//System.out.println("Method 1: " + Arrays.toString(coords1));
+			System.out.println("Method 2: " + i + ": " +  Arrays.toString(coords2));
 		}
 	}
-	
+
 	public int[] getPosition(int n)
 	{
 		// given n an index in the squared spiral
@@ -28,13 +32,13 @@ public class SpiralMappingTest
 		int r = (int) Math.floor((Math.sqrt(n + 1) - 1) / 2) + 1;
 
 		// compute radius : inverse arithmetic sum of 8+16+24+...=
-		double p = (8 * r * (r - 1)) / 2;
+		int p = 4 * r * (r - 1);
 		// compute total point on radius -1 : arithmetic sum of 8+16+24+...
 
-		double en = r * 2;
+		int en = r * 2;
 		// points by face
 
-		double a = (1 + n - p) % (r * 8);
+		int a = (1 + n - p) % (r * 8);
 		// compute de position and shift it so the first is (-r,-r) but (-r+1,-r)
 		// so square can connect
 
@@ -69,8 +73,20 @@ public class SpiralMappingTest
 		}
 			break;
 		}
-		System.out.println("n : " + n + " r : " + r + " p : " + p + " a : " + a + "  -->  " + Arrays.toString(pos));
+		//System.out.println("n : " + n + " r : " + r + " p : " + p + " a : " + a + "  -->  " + Arrays.toString(pos));
 		return pos;
 	}
 
+	public int[] getTileCoordinates(int tileNum)
+	{
+		int intRoot = (int) Math.floor(Math.sqrt(tileNum));
+
+		int x = (int) ((Math.round(intRoot / 2f) * Math.pow(-1, intRoot + 1)) + (Math.pow(-1, intRoot + 1)
+				* (((intRoot * (intRoot + 1)) - tileNum) - Math.abs((intRoot * (intRoot + 1)) - tileNum)) / 2f));
+
+		int y = (int) ((Math.round(intRoot / 2f) * Math.pow(-1, intRoot)) + (Math.pow(-1, intRoot + 1)
+				* (((intRoot * (intRoot + 1)) - tileNum) + Math.abs((intRoot * (intRoot + 1)) - tileNum)) / 2f));
+
+		return new int[] { x, y };
+	}
 }
