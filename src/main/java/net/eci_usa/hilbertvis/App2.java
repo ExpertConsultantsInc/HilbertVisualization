@@ -169,6 +169,56 @@ public class App2
 		return nonlocalNeighborMeasurement;
 	}
 	
+	static int[] getPointsInCircle(int[] center, int radius, int max)
+	{
+		int x1 = center[0] - radius;
+		int y1 = center[1] - radius;
+		int x2 = center[0] + radius;
+		int y2 = center[1] + radius;
+		x1 = Math.max(0,  x1);
+		y1 = Math.max(0,  y1);
+		x2 = Math.min(x2, max);
+		y2 = Math.min(y2,  max);
+		int r2 = radius*radius;
+		
+		for(int x = x1; x < x2; x++)
+		{
+			for(int y = y1; y < y2; y++)
+			{
+				int dx = center[0]-x;
+				int dy = center[1]-y;
+				boolean incircle = (dx*dx + dy*dy) <= r2;
+			}
+		}
+		return null;
+	}
+	
+	static int[][] computeNonLocalNeighborMeasurement(CoordMapper hm, int radius)
+	{
+		int width = hm.getWidth();
+		
+		int nonlocalNeighborMeasurement[][] = new int[width][width];
+		
+		for(int x = 1; x < width-1; x++)
+		{
+			for(int y = 1; y < width-1; y++)
+			{
+				int index = hm.getIndex(x, y);
+				
+				int indexUp = hm.getIndex(x, y-1);
+				int indexDown = hm.getIndex(x, y+1);
+				int indexLeft = hm.getIndex(x-1, y);
+				int indexRight = hm.getIndex(x+1, y);
+				
+				int nlnm = Math.abs(index - indexUp) + Math.abs(index - indexDown) + Math.abs(index - indexLeft) + Math.abs(index - indexRight);
+				
+				nonlocalNeighborMeasurement[x][y] = nlnm;
+			}
+		}
+		
+		return nonlocalNeighborMeasurement;
+	}
+	
 	static double distance(int xy1[], int xy2[])
 	{
 		int dx = xy1[0] - xy2[0];
