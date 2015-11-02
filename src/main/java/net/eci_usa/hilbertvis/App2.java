@@ -7,12 +7,34 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import javax.imageio.stream.FileImageOutputStream;
 import javax.imageio.stream.ImageOutputStream;
 
+import net.eci_usa.hilbertvis.FFT.FFTOutput;
+
 public class App2
 {
+	static Map<String, CoordMapper> mappers = new HashMap<>();
+	
+	public static CoordMapper addMapper(CoordMapper cm)
+	{
+		mappers.put(cm.getMapperName(), cm);
+		return cm;
+	}
+	
+	public static List<File> getInputFiles()
+	{
+		File srcDir = new File("./samples_2");
+		File[] files = srcDir.listFiles( (File f) -> f.getName().endsWith(".wav") );
+		return Arrays.asList(files);
+	}
+	
 	public static void main(String args[]) throws IOException
 	{
 		HilbertMapping hm = new HilbertMapping(8);
@@ -26,13 +48,130 @@ public class App2
 		
 		ZigzagMapping2 zm2 = new ZigzagMapping2(256);
 		doMapper(zm2, zm2.getLength() / 23);
+		
+		List<File> inputFiles = getInputFiles();
+
+		for(File f : inputFiles)
+		{
+			String outname = f.getName().replaceAll("\\.[Ww][Aa][Vv]", "") + "_waterfall_fft.gif"; 
+			writeFFTWaterfallGIF(f, 1024, new File(f.getParentFile(), outname), 1000 );
+		}
+		
+		for(CoordMapper cm : mappers.values())
+		{
+			for(File f : inputFiles)
+			{
+				String outname = f.getName().replaceAll("\\.[Ww][Aa][Vv]", "") + "_" + cm.getMapperName() + "_fft.gif"; 
+				File outputFile = new File( f.getParentFile(), outname);
+				
+				writeAnimatedFFTGIF(cm, f, cm.getLength(), outputFile, 100);
+			}
+		}
 	}
 	
 	public static void doMapper(CoordMapper cm, int sweepWidth) throws FileNotFoundException, IOException
 	{
-		writeAnimiatedNonLocalNeighborMeasurementGIF(cm, 20, new File("./nlnm_" + cm.getMapperName() + ".gif"));
-		writeAnimiatedNonLocalNeighborMeasurement2GIF(cm, 20, new File("./nlnm2_" + cm.getMapperName() + ".gif"));
-		writeAnimatedBlobSweepGIF(cm, sweepWidth, new File("./sweep_" + cm.getMapperName() + ".gif"));
+		addMapper(cm);
+		
+//		writeAnimiatedNonLocalNeighborMeasurementGIF(cm, 20, new File("./nlnm_" + cm.getMapperName() + ".gif"));
+//		writeAnimiatedNonLocalNeighborMeasurement2GIF(cm, 20, new File("./nlnm2_" + cm.getMapperName() + ".gif"));
+//		writeAnimatedBlobSweepGIF(cm, sweepWidth, new File("./sweep_" + cm.getMapperName() + ".gif"));
+	}
+
+	static class RowInfo
+	{
+		int rownum;
+	}
+	public static void writeFFTWaterfallGIF(File inputFile, int fftWidth, File destGif, int maxHt) throws FileNotFoundException, IOException
+	{
+		destGif.delete();
+		ImageOutputStream output = new FileImageOutputStream(destGif);
+		int frameLenMS = 100;
+
+		WAV wav = new WAV( inputFile );
+		FFT fft = new FFT( fftWidth );
+		float squelch = 0.8f;
+		BufferedImage bi = new BufferedImage(fftWidth, maxHt, BufferedImage.TYPE_INT_RGB );
+		RowInfo ri = new RowInfo();
+		
+		wav.processSamples( fftWidth, (ComplexData cd) -> 
+		{
+			FFTOutput fftoutput = fft.process(cd);
+			
+			double data[] = fftoutput.mags;
+			double minmaxavg[] = getMinMaxAvg(data);
+			double range = (minmaxavg[1] - minmaxavg[0]) * squelch;
+			
+			float[] hsb = Color.RGBtoHSB(Color.GREEN.getRed(), Color.GREEN.getGreen(), Color.GREEN.getBlue(), null);
+
+			for(int i = 0; i < data.length; i++)
+			{
+				double d = data[i];
+				float adj = (float)((d-minmaxavg[0]) / range);	// adj = [0..1]
+				
+				int rgb = Color.HSBtoRGB(hsb[0], hsb[1], adj );
+				
+				bi.setRGB(i, ri.rownum, rgb);
+			}
+			ri.rownum++;
+			
+			return ri.rownum < maxHt;
+		} );
+
+		GifSequenceWriter writer = new GifSequenceWriter(output, BufferedImage.TYPE_INT_RGB, frameLenMS, true);
+		try
+		{
+			writer.writeToSequence(bi);
+		}
+		catch (Exception e)
+		{
+		}
+		
+		System.out.println("Wrote frame " + writer.getFrameCount() + " to " + destGif);
+		
+		writer.close();
+		output.close();
+		
+		System.out.println("Finished writing FFT waterfall gif " + destGif + " from " + inputFile);
+	}
+	
+	
+
+	public static void writeAnimatedFFTGIF(CoordMapper cm, File inputFile, int fftWidth, File destGif, int maxFrameCount) throws FileNotFoundException, IOException
+	{
+		destGif.delete();
+		ImageOutputStream output = new FileImageOutputStream(destGif);
+		int frameLenMS = 100;
+		GifSequenceWriter writer = new GifSequenceWriter(output, BufferedImage.TYPE_INT_RGB, frameLenMS, true);
+
+		WAV wav = new WAV( inputFile );
+		FFT fft = new FFT( fftWidth );
+		
+		wav.processSamples( fftWidth, (ComplexData data) -> 
+		{
+			FFTOutput fftoutput = fft.process(data);
+			
+			BufferedImage bi = createBufferedImageFromData(cm, fftoutput.mags, .2f);
+			try
+			{
+				writer.writeToSequence(bi);
+			}
+			catch (Exception e)
+			{
+			}
+			
+			System.out.println("Wrote frame " + writer.getFrameCount() + " to " + destGif);
+			
+			return writer.getFrameCount() < maxFrameCount;
+		} );
+
+		BufferedImage finalBI = new BufferedImage(cm.getWidth(), cm.getHeight(), BufferedImage.TYPE_INT_RGB );
+		writer.writeToSequence(finalBI);
+		
+		writer.close();
+		output.close();
+		
+		System.out.println("Finished writing FFT gif " + destGif + " from " + inputFile);
 	}
 	
 	
@@ -169,6 +308,35 @@ public class App2
 		return nonlocalNeighborMeasurement;
 	}
 	
+	interface PointHandler
+	{
+		public void handlePoint(int x, int y);
+	}
+	
+	static void forEachPointInCircle(int cx, int cy, int radius, int max, PointHandler ph)
+	{
+		int x1 = cx - radius;
+		int y1 = cy - radius;
+		int x2 = cx + radius;
+		int y2 = cy + radius;
+		x1 = Math.max(0,  x1);
+		y1 = Math.max(0,  y1);
+		x2 = Math.min(x2, max);
+		y2 = Math.min(y2,  max);
+		int r2 = radius*radius;
+		
+		for(int x = x1; x < x2; x++)
+		{
+			for(int y = y1; y < y2; y++)
+			{
+				int dx = cx-x;
+				int dy = cy-y;
+				boolean incircle = (dx*dx + dy*dy) <= r2;
+				if ( incircle ) ph.handlePoint(x, y);
+			}
+		}
+	}
+	
 	static int[] getPointsInCircle(int[] center, int radius, int max)
 	{
 		int x1 = center[0] - radius;
@@ -203,16 +371,10 @@ public class App2
 		{
 			for(int y = 1; y < width-1; y++)
 			{
-				int index = hm.getIndex(x, y);
+				int linearIndexCenter = hm.getIndex(x, y);
 				
-				int indexUp = hm.getIndex(x, y-1);
-				int indexDown = hm.getIndex(x, y+1);
-				int indexLeft = hm.getIndex(x-1, y);
-				int indexRight = hm.getIndex(x+1, y);
+				forEachPointInCircle(x, y, radius, width, (px,py) -> nonlocalNeighborMeasurement[px][py] += Math.abs(hm.getIndex(px, py)-linearIndexCenter) );
 				
-				int nlnm = Math.abs(index - indexUp) + Math.abs(index - indexDown) + Math.abs(index - indexLeft) + Math.abs(index - indexRight);
-				
-				nonlocalNeighborMeasurement[x][y] = nlnm;
 			}
 		}
 		
@@ -269,6 +431,22 @@ public class App2
 		int avg = (int)(total / count);
 		
 		return new int[] { min, max, avg };
+	}
+
+	static double[] getMinMaxAvg(double[] data)
+	{
+		double max = data[0];
+		double min = data[0];
+		double total = 0;
+		for(double d : data)
+		{
+			if ( min > d ) min = d;
+			if ( max < d ) max = d;
+			total += d;
+		}
+		double avg = total / (double)data.length;
+		
+		return new double[] { min, max, avg };
 	}
 	
 	static void dumpStats(int[][] data)
@@ -359,6 +537,28 @@ public class App2
 		
 		String msg = String.format("Cutoff: %d (%2.0f%%)", (int)vallimit, limitCutoff*100);
 		writeString(bi.createGraphics(), msg, 10, 10, TEXT_ALIGN.LEFT, Color.WHITE);
+		
+		return bi;
+	}
+	
+	public static BufferedImage createBufferedImageFromData(CoordMapper cm, double[] data, float squelch )
+	{
+		double minmaxavg[] = getMinMaxAvg(data);
+		double range = (minmaxavg[1] - minmaxavg[0]) * squelch;
+		
+		float[] hsb = Color.RGBtoHSB(Color.GREEN.getRed(), Color.GREEN.getGreen(), Color.GREEN.getBlue(), null);
+
+		BufferedImage bi = new BufferedImage(cm.getWidth(), cm.getHeight(), BufferedImage.TYPE_INT_RGB );
+		for(int i = 0; i < data.length && i < cm.getLength(); i++)
+		{
+			int coords[] = cm.getCoords(i);
+			double d = data[i];
+			float adj = (float)((d-minmaxavg[0]) / range);	// adj = [0..1]
+			
+			int rgb = Color.HSBtoRGB(hsb[0], hsb[1], adj );
+			
+			bi.setRGB(coords[0], coords[1], rgb);
+		}
 		
 		return bi;
 	}

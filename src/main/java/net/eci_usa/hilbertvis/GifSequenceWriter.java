@@ -21,6 +21,7 @@ public class GifSequenceWriter
 	protected ImageWriter gifWriter;
 	protected ImageWriteParam imageWriteParam;
 	protected IIOMetadata imageMetaData;
+	private int frameCount;
 
 	/**
 	 * Creates a new GifSequenceWriter
@@ -85,6 +86,12 @@ public class GifSequenceWriter
 	public void writeToSequence(RenderedImage img) throws IOException
 	{
 		gifWriter.writeToSequence(new IIOImage(img, null, imageMetaData), imageWriteParam);
+		frameCount++;
+	}
+	
+	public int getFrameCount()
+	{
+		return frameCount;
 	}
 
 	/**
